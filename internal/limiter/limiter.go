@@ -43,7 +43,9 @@ func (l *Limiter) Limit(ctx context.Context, key string) bool {
 		tokens -= 1
 		bucket.Tokens = tokens
 		bucket.LastRefill = time.Now().Unix()
-		l.cache.Set(ctx, key, bucket)
+		if err := l.cache.Set(ctx, key, bucket); err != nil {
+			log.Printf("Failed to update bucket for %s: %v", key, err)
+		}
 		return true
 	}
 
