@@ -13,4 +13,4 @@ services:
       - RATE_LIMIT_FPS=1
       - RATE_LIMIT_MAX=5
     depends_on:
-      [redis]
+      - redis
