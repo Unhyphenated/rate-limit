@@ -19,7 +19,9 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 		if !l.Limit(r.Context(), key) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error": "rate limit exceeded", "retry_after": 60}`))
+			if _, err := w.Write([]byte(`{"error": "rate limit exceeded", "retry_after": 60}`)); err != nil {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
 			return
 		}
 
