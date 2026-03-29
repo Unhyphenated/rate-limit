@@ -9,6 +9,7 @@ import (
 
 	"github.com/Unhyphenated/rate-limit/internal/cache"
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
+	"github.com/Unhyphenated/rate-limit/internal/middleware"
 )
 
 func getEnv(key, fallback string) string {
@@ -16,6 +17,13 @@ func getEnv(key, fallback string) string {
         return value
     }
     return fallback
+}
+
+func getPrices(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+    // Mock data for a trading platform
+    prices := `{"BTC_USD": 65000.50, "ETH_USD": 3500.20, "timestamp": 1710712200}`
+    w.Write([]byte(prices))
 }
 
 func main() {	
@@ -36,6 +44,12 @@ func main() {
 
 	limiter := limiter.NewLimiter(cache, rate, max)
 	
-	fmt.Println("Sever listening on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/api/v1/prices", middleware.RateLimit(limiter, getPrices))
+
+	fmt.Println("Server listening on port 8080")
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
+	}
 }
