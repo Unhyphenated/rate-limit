@@ -2,7 +2,7 @@ package limiter
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/cache"
@@ -26,7 +26,7 @@ func NewLimiter(c cache.Cache, rate int64, max int64) *Limiter {
 func (l *Limiter) Limit(ctx context.Context, key string) bool {
 	bucket, err := l.cache.Get(ctx, key)
 	if err != nil {
-		log.Printf("Redis error for key %s: %v. Failing open.", key, err)
+		slog.Warn("rate_limit_cache_get_error_fail_open", slog.String("key", key), slog.Any("error", err))
 		return true
 	}
 
@@ -44,7 +44,7 @@ func (l *Limiter) Limit(ctx context.Context, key string) bool {
 		bucket.Tokens = tokens
 		bucket.LastRefill = time.Now().Unix()
 		if err := l.cache.Set(ctx, key, bucket); err != nil {
-			log.Printf("Failed to update bucket for %s: %v", key, err)
+			slog.Warn("rate_limit_bucket_set_failed", slog.String("key", key), slog.Any("error", err))
 		}
 		return true
 	}

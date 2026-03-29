@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -21,6 +20,18 @@ func getEnv(key, fallback string) string {
 }
 
 func main() {	
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+        Level: slog.LevelInfo,
+    })
+
+	logger := slog.New(handler)
+    slog.SetDefault(logger)
+
+	slog.Info("api_node_starting", 
+        slog.String("version", "1.0.0"),
+        slog.Int("port", 8080),
+    )
+	
 	rateStr := getEnv("RATE_LIMIT_FPS", "10")
 	maxStr := getEnv("RATE_LIMIT_MAX", "100")
 
@@ -31,7 +42,8 @@ func main() {
 	redisUrl := getEnv("REDIS_URL", "redis://localhost:6379")
 	cache, err := cache.NewCache(redisUrl)
 	if err != nil {
-		log.Fatalf("Failed to initialize Redis cache: %v", err)
+		slog.Error("failed_to_initialize_redis_cache", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	defer cache.Close()
@@ -42,8 +54,8 @@ func main() {
 
 	mux.HandleFunc("/api/v1/prices", middleware.RateLimit(limiter, handlers.GetPrices))
 
-	fmt.Println("Server listening on port 8080")
+	slog.Info("server_listening", slog.Int("port", 8080))
 	if err := http.ListenAndServe(":8080", mux); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		slog.Error("server_forced_to_shutdown", slog.String("error", err.Error()))
 	}
 }

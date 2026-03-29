@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/Unhyphenated/rate-limit/internal/models"
 	"github.com/redis/go-redis/v9"
@@ -32,7 +33,7 @@ func NewCache(redisURL string) (Cache, error) {
 		return nil, fmt.Errorf("failed to ping Redis: %w", err)
 	}
 
-	fmt.Println("Successfully initialized Redis Client!")
+	slog.Info("redis_client_initialized")
 
 	return &Redis{Client: client}, nil
 }
@@ -74,8 +75,8 @@ func (c *Redis) Delete(ctx context.Context, key string) error {
 func (c *Redis) Close() {
 	err := c.Client.Close()
 	if err != nil {
-		fmt.Printf("failed to close Redis client: %v", err)
+		slog.Error("redis_client_close_failed", slog.Any("error", err))
 		return
 	}
-	fmt.Println("Successfully closed Redis Client!")
+	slog.Info("redis_client_closed")
 }
