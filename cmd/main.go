@@ -1,47 +1,61 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
-	"net"
-	"log"
+	"os"
+	"strconv"
+
+	"github.com/Unhyphenated/rate-limit/internal/cache"
+	"github.com/Unhyphenated/rate-limit/internal/handlers"
+	"github.com/Unhyphenated/rate-limit/internal/limiter"
+	"github.com/Unhyphenated/rate-limit/internal/middleware"
 )
 
-var limits map[string]int
-
-func getHello(w http.ResponseWriter, r *http.Request) {
-	ip := getIP(r)
-	_, ok := limits[ip]
-	
-	if !ok {
-		limits[ip] = 10
-	}
-	
-	fmt.Printf("Rate limit: %d\n", limits[ip])
-	
-	isRateLimited := limits[ip] == 0
-	
-	if isRateLimited {
-		w.Header().Set("Retry-After", "60")
-		fmt.Println("Rate Limited")
-		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-		return
-	}
-	
-	limits[ip] -= 1
-	w.WriteHeader(http.StatusOK)
-	fmt.Println("Hello")
+func getEnv(key, fallback string) string {
+    if value, ok := os.LookupEnv(key); ok {
+        return value
+    }
+    return fallback
 }
 
-func getIP(r *http.Request) string {
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	fmt.Println(host)
-	return host
-}
-func main() {
-	limits = make(map[string]int)
-	http.HandleFunc("/hello", getHello)
+func main() {	
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+        Level: slog.LevelInfo,
+    })
+
+	logger := slog.New(handler)
+    slog.SetDefault(logger)
+
+	slog.Info("api_node_starting", 
+        slog.String("version", "1.0.0"),
+        slog.Int("port", 8080),
+    )
 	
-	fmt.Println("Sever listening on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	rateStr := getEnv("RATE_LIMIT_FPS", "10")
+	maxStr := getEnv("RATE_LIMIT_MAX", "100")
+
+	rate, _ := strconv.ParseInt(rateStr, 10, 64)
+    max, _ := strconv.ParseInt(maxStr, 10, 64)
+
+	// Start Redis cache
+	redisUrl := getEnv("REDIS_URL", "redis://localhost:6379")
+	cache, err := cache.NewCache(redisUrl)
+	if err != nil {
+		slog.Error("failed_to_initialize_redis_cache", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	defer cache.Close()
+
+	limiter := limiter.NewLimiter(cache, rate, max)
+	
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/api/v1/prices", middleware.RateLimit(limiter, handlers.GetPrices))
+
+	slog.Info("server_listening", slog.Int("port", 8080))
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		slog.Error("server_forced_to_shutdown", slog.String("error", err.Error()))
+	}
 }
