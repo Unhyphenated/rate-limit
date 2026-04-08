@@ -12,6 +12,7 @@ import (
 type Cache interface {
 	Get(ctx context.Context, key string) (*models.Bucket, error)
 	Set(ctx context.Context, key string, bucket *models.Bucket) error
+	Eval(ctx context.Context, script *redis.Script, keys []string, args []any) (any, error)
 	Delete(ctx context.Context, key string) error
 	Close()
 }
@@ -62,6 +63,14 @@ func (c *Redis) Set(ctx context.Context, key string, bucket *models.Bucket) erro
         return fmt.Errorf("failed to set bucket: %w", err)
     }
     return nil
+}
+
+func (c *Redis) Eval(ctx context.Context, script *redis.Script, keys []string, args []any) (any, error) {
+	res, err := script.Run(ctx, c.Client, keys, args...).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run Lua script: %w", err)
+	}
+	return res, nil
 }
 
 func (c *Redis) Delete(ctx context.Context, key string) error {
