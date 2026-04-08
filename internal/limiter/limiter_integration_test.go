@@ -32,7 +32,7 @@ func TestLimiter_Integration_BasicFlow(t *testing.T) {
 
 	ctx := context.Background()
 	key := "test-basic-flow"
-	defer c.Delete(ctx, key)
+	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 1 token/sec, Max: 5 tokens
 	l := NewLimiter(c, 1, 5)
@@ -60,7 +60,7 @@ func TestLimiter_Integration_Refill(t *testing.T) {
 
 	ctx := context.Background()
 	key := "test-refill"
-	defer c.Delete(ctx, key)
+	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 2 tokens/sec, Max: 5 tokens
 	l := NewLimiter(c, 2, 5)
@@ -102,7 +102,7 @@ func TestLimiter_Integration_MaxTokensCap(t *testing.T) {
 
 	ctx := context.Background()
 	key := "test-max-cap"
-	defer c.Delete(ctx, key)
+	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 10 tokens/sec, Max: 5 tokens
 	l := NewLimiter(c, 10, 5)
@@ -135,7 +135,7 @@ func TestLimiter_Integration_RaceCondition(t *testing.T) {
 
 	ctx := context.Background()
 	key := "test-race-condition"
-	defer c.Delete(ctx, key)
+	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 0 tokens/sec (no refill), Max: 10 tokens
 	l := NewLimiter(c, 0, 10)
@@ -189,7 +189,7 @@ func TestLimiter_Integration_TTL(t *testing.T) {
 
 	ctx := context.Background()
 	key := "test-ttl"
-	defer c.Delete(ctx, key)
+	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 1 token/sec, Max: 5 tokens
 	l := NewLimiter(c, 1, 5)
@@ -222,8 +222,8 @@ func TestLimiter_Integration_MultipleUsers(t *testing.T) {
 	ctx := context.Background()
 	key1 := "user-1"
 	key2 := "user-2"
-	defer c.Delete(ctx, key1)
-	defer c.Delete(ctx, key2)
+	defer func() { _ = c.Delete(ctx, key1) }()
+	defer func() { _ = c.Delete(ctx, key2) }()
 
 	// Rate: 1 token/sec, Max: 3 tokens
 	l := NewLimiter(c, 1, 3)
@@ -260,7 +260,7 @@ func TestLimiter_Integration_HighConcurrency(t *testing.T) {
 
 	ctx := context.Background()
 	key := "test-high-concurrency"
-	defer c.Delete(ctx, key)
+	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 0 tokens/sec, Max: 50 tokens
 	l := NewLimiter(c, 0, 50)
