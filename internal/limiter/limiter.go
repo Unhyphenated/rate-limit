@@ -67,5 +67,4 @@ var getLimit = redis.NewScript(`
 	end
 
 	return 0
-
 `)
