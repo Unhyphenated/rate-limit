@@ -3,6 +3,7 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
@@ -16,14 +17,22 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 			key = getClientIP(r)
 		}
 
-		if !l.Limit(r.Context(), key) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
-			if _, err := w.Write([]byte(`{"error": "rate limit exceeded", "retry_after": 60}`)); err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
+		result := l.Allow(r.Context(), key)
+
+		if result.FailOpen {
+			next.ServeHTTP(w, r)
 			return
 		}
+
+		if !result.Allowed {
+			w.Header().Set("Retry-After", strconv.FormatInt(result.RetryAfter, 10))
+			w.WriteHeader(429)
+			return
+		}
+
+		w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(result.Limit, 10))
+		w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(result.Remaining, 10))
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(result.ResetAt, 10))
 
 		next.ServeHTTP(w, r)
 	}
