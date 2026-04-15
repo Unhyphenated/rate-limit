@@ -18,6 +18,14 @@ type Limiter struct {
 }
 
 func NewLimiter(c cache.Cache, rate int64, max int64) *Limiter {
+	if rate <= 0 {
+		panic("rate must be positive")
+	}
+
+	if max <= 0 {
+		panic ("maxTokens must be positive")
+	}
+
 	return &Limiter{
 		cache: c,
 		rate: rate,
@@ -94,7 +102,5 @@ var getLimit = redis.NewScript(`
 		return {1, bucket["tokens"], resetAt}
 	end
 
-	local timeToNextToken = currentTime + math.ceil(1 / rate)
-
-	return {0, 0, timeToNextToken}
+	return {0, 0, resetAt}
 `)
