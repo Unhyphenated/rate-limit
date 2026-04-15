@@ -3,9 +3,11 @@ package limiter
 import (
 	"context"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/cache"
+	"github.com/Unhyphenated/rate-limit/internal/models"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -16,6 +18,14 @@ type Limiter struct {
 }
 
 func NewLimiter(c cache.Cache, rate int64, max int64) *Limiter {
+	if rate <= 0 {
+		panic("rate must be positive")
+	}
+
+	if max <= 0 {
+		panic ("maxTokens must be positive")
+	}
+
 	return &Limiter{
 		cache: c,
 		rate: rate,
@@ -23,18 +33,40 @@ func NewLimiter(c cache.Cache, rate int64, max int64) *Limiter {
 	}
 }
 
-func (l *Limiter) Limit(ctx context.Context, key string) bool {
+func (l *Limiter) Allow(ctx context.Context, key string) *models.RateLimitResult {
+	rlResult := &models.RateLimitResult{
+		Allowed: true, 
+		Limit: l.maxTokens,
+		Remaining: 0,
+		ResetAt: 0,
+		RetryAfter: 0,
+		FailOpen: false,
+	}
+
 	result, err := l.cache.Eval(ctx, getLimit, []string{key}, []any{l.rate, l.maxTokens, time.Now().Unix()})
+	// Fail-open 
 	if err != nil {
 		slog.Warn("rate_limit_script_failed", slog.String("key", key), slog.Any("error", err))
-		return true
+		rlResult.FailOpen = true
+		return rlResult
 	}
-	allowed, ok := result.(int64)
-	if !ok {
+
+	values, ok := result.([]interface{})
+	if !ok || len(values) != 3 {
 		slog.Warn("unexpected_script_result_type", slog.Any("result", result))
-		return true
+		rlResult.FailOpen = true
+		return rlResult
 	}
-	return allowed == 1
+
+	rlResult.Allowed = values[0].(int64) == 1
+	rlResult.Remaining = values[1].(int64)
+	rlResult.ResetAt = values[2].(int64)
+
+	if !rlResult.Allowed {
+		rlResult.RetryAfter = int64(math.Ceil(1.0 / float64(l.rate)))
+	}
+
+	return rlResult
 }
 
 var getLimit = redis.NewScript(`
@@ -58,14 +90,17 @@ var getLimit = redis.NewScript(`
 	local elapsed = currentTime - bucket["last_refill"]
 	bucket["tokens"] = math.min(maxTokens, bucket["tokens"] + (elapsed * rate))
 
+	local tokensNeeded = maxTokens - bucket["tokens"]
+	local resetAt = currentTime + math.ceil(tokensNeeded / rate)
+
 	if bucket["tokens"] >= 1 then
 		bucket["tokens"] = bucket["tokens"] - 1
 		bucket["last_refill"] = currentTime
 		redis.call("HSET", key, "tokens", bucket["tokens"], "last_refill", bucket["last_refill"])
 		redis.call("EXPIRE", key, 3600)
-		return 1
+
+		return {1, bucket["tokens"], resetAt}
 	end
 
-	return 0
-
+	return {0, 0, resetAt}
 `)
