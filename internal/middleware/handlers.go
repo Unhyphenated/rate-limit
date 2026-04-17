@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
+	"github.com/Unhyphenated/rate-limit/internal/metrics"
 )
 
 func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
@@ -17,7 +19,13 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 			key = getClientIP(r)
 		}
 
+		endpoint := r.URL.Path
+
+		start := time.Now()
+
 		result := l.Allow(r.Context(), key)
+
+		metrics.HttpRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds())
 
 		if result.FailOpen {
 			next.ServeHTTP(w, r)
