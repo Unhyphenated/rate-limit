@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/cache"
+	"github.com/Unhyphenated/rate-limit/internal/metrics"
 	"github.com/Unhyphenated/rate-limit/internal/models"
 	"github.com/redis/go-redis/v9"
 )
@@ -46,11 +47,13 @@ func (l *Limiter) Allow(ctx context.Context, key string) *models.RateLimitResult
 	result, err := l.cache.Eval(ctx, getLimit, []string{key}, []any{l.rate, l.maxTokens, time.Now().Unix()})
 	// Fail-open 
 	if err != nil {
+		metrics.RedisOpsTotal.WithLabelValues("eval", "error").Inc()
 		slog.Warn("rate_limit_script_failed", slog.String("key", key), slog.Any("error", err))
 		rlResult.FailOpen = true
 		return rlResult
 	}
 
+	metrics.RedisOpsTotal.WithLabelValues("eval", "success").Inc()
 	values, ok := result.([]interface{})
 	if !ok || len(values) != 3 {
 		slog.Warn("unexpected_script_result_type", slog.Any("result", result))
