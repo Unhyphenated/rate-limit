@@ -47,3 +47,14 @@ services:
     - api-1
     - api-2
     - api-3
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+    - api-1
+    - api-2
+    - api-3

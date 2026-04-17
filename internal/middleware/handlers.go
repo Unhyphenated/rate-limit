@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
+	"github.com/Unhyphenated/rate-limit/internal/metrics"
 )
 
 func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
@@ -17,19 +19,28 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 			key = getClientIP(r)
 		}
 
+		endpoint := r.URL.Path
+		start := time.Now()
+
 		result := l.Allow(r.Context(), key)
 
+		metrics.HttpRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds())
+
 		if result.FailOpen {
+			metrics.HttpRequestsTotal.WithLabelValues("accepted", endpoint).Inc()
+			metrics.FailOpenTotal.Inc()
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		if !result.Allowed {
+			metrics.HttpRequestsTotal.WithLabelValues("denied", endpoint).Inc()
 			w.Header().Set("Retry-After", strconv.FormatInt(result.RetryAfter, 10))
 			w.WriteHeader(429)
 			return
 		}
 
+		metrics.HttpRequestsTotal.WithLabelValues("accepted", endpoint).Inc()
 		w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(result.Limit, 10))
 		w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(result.Remaining, 10))
 		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(result.ResetAt, 10))
