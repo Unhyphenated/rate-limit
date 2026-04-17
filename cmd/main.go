@@ -10,6 +10,8 @@ import (
 	"github.com/Unhyphenated/rate-limit/internal/handlers"
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
 	"github.com/Unhyphenated/rate-limit/internal/middleware"
+	"github.com/Unhyphenated/rate-limit/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func getEnv(key, fallback string) string {
@@ -53,6 +55,10 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/v1/prices", middleware.RateLimit(limiter, handlers.GetPrices))
+
+	// Handle Prometheus metrics using promhttp
+	metrics.Init()
+	mux.Handle("/metrics", promhttp.Handler())
 
 	slog.Info("server_listening", slog.Int("port", 8080))
 	if err := http.ListenAndServe(":8080", mux); err != nil {
