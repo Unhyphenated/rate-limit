@@ -8,7 +8,7 @@ import (
 var (
 	// HttpRequestsTotal tracks how many requests have been made.
 	// 'status' differentiates between 'accepted' and 'denied' requests.
-	HttpRequestsTotal = prometheus.NewCounterVec(
+	HttpRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "ratelimiter",
 			Subsystem: "http",
