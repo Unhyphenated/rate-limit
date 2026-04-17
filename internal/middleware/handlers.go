@@ -27,6 +27,7 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 		metrics.HttpRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds())
 
 		if result.FailOpen {
+			metrics.HttpRequestsTotal.WithLabelValues("accepted", endpoint).Inc()
 			metrics.FailOpenTotal.Inc()
 			next.ServeHTTP(w, r)
 			return
