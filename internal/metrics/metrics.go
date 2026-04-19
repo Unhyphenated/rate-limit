@@ -6,9 +6,9 @@ import (
 )
 
 var (
-	// HttpRequestsTotal tracks how many requests have been made.
+	// RequestsTotal tracks how many requests have been made.
 	// 'status' differentiates between 'accepted' and 'denied' requests.
-	HttpRequestsTotal = promauto.NewCounterVec(
+	RequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "ratelimiter",
 			Subsystem: "http",
@@ -18,8 +18,8 @@ var (
 		[]string{"status", "endpoint"},
 	)
 
-	// HttpRequestDuration tracks how long the rate limiting logic takes.
-	HttpRequestDuration = promauto.NewHistogramVec(
+	// RequestDuration tracks how long the rate limiting logic takes.
+	RequestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "ratelimiter",
 			Subsystem: "http",
