@@ -49,6 +49,16 @@ var (
 			Help:      "Total number of times the limiter failed open due to errors.",
 		},
 	)
+
+	// ActiveBuckets tracks the number of active token buckets in Redis.
+	ActiveBuckets = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "ratelimiter",
+			Subsystem: "limiter",
+			Name:      "active_buckets",
+			Help:      "Total number of active token buckets in Redis.",
+		},
+	)
 )
 
 func Init() {}

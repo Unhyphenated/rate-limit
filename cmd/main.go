@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/cache"
 	"github.com/Unhyphenated/rate-limit/internal/handlers"
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
-	"github.com/Unhyphenated/rate-limit/internal/middleware"
 	"github.com/Unhyphenated/rate-limit/internal/metrics"
+	"github.com/Unhyphenated/rate-limit/internal/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -59,6 +61,18 @@ func main() {
 	// Handle Prometheus metrics using promhttp
 	metrics.Init()
 	mux.Handle("/metrics", promhttp.Handler())
+
+
+	// Get the number of buckets every 30 seconds from Redis
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		for range ticker.C {
+			count, err := cache.Count(context.Background(), "*")
+			if err == nil {
+				metrics.ActiveBuckets.Set(float64(count))
+			}
+		}
+	}()
 
 	slog.Info("server_listening", slog.Int("port", 8080))
 	if err := http.ListenAndServe(":8080", mux); err != nil {
