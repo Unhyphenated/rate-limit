@@ -13,6 +13,7 @@ type Cache interface {
 	Get(ctx context.Context, key string) (*models.Bucket, error)
 	Set(ctx context.Context, key string, bucket *models.Bucket) error
 	Eval(ctx context.Context, script *redis.Script, keys []string, args []any) (any, error)
+	Count(ctx context.Context, pattern string) (int64, error)
 	Delete(ctx context.Context, key string) error
 	Close()
 }
@@ -79,6 +80,26 @@ func (c *Redis) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to delete key from Redis: %w", err)
 	}
 	return nil
+}
+
+func (c *Redis) Count(ctx context.Context, pattern string) (int64, error) {
+	var cursor uint64
+	var count int64
+
+	for {
+		buckets, newCursor, err := c.Client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return 0, err
+		}
+		count += int64(len(buckets))
+		cursor = newCursor
+
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return count, nil
 }
 
 func (c *Redis) Close() {
