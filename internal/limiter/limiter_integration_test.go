@@ -35,12 +35,14 @@ func TestLimiter_Integration_BasicFlow(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 1 token/sec, Max: 5 tokens
-	l := NewLimiter(c, 1, 5)
+	l := NewLimiter(c)
+	rate := int64(1)
+	maxTokens := int64(5)
 
 	t.Run("New user gets max tokens", func(t *testing.T) {
 		// First 5 requests should succeed
 		for i := 0; i < 5; i++ {
-			result := l.Allow(ctx, key)
+			result := l.Allow(ctx, key, rate, maxTokens)
 			if !result.Allowed {
 				t.Errorf("Request %d should be allowed (new user starts with 5 tokens)", i+1)
 			}
@@ -50,7 +52,7 @@ func TestLimiter_Integration_BasicFlow(t *testing.T) {
 		}
 
 		// 6th request should fail (no tokens left)
-		result := l.Allow(ctx, key)
+		result := l.Allow(ctx, key, rate, maxTokens)
 		if result.Allowed {
 			t.Error("Request 6 should be denied (bucket depleted)")
 		}
@@ -69,16 +71,18 @@ func TestLimiter_Integration_Refill(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 2 tokens/sec, Max: 5 tokens
-	l := NewLimiter(c, 2, 5)
+	l := NewLimiter(c)
+	rate := int64(2)
+	maxTokens := int64(5)
 
 	t.Run("Tokens refill over time", func(t *testing.T) {
 		// Deplete all tokens
 		for i := 0; i < 5; i++ {
-			l.Allow(ctx, key)
+			l.Allow(ctx, key, rate, maxTokens)
 		}
 
 		// Verify depleted
-		result := l.Allow(ctx, key)
+		result := l.Allow(ctx, key, rate, maxTokens)
 		if result.Allowed {
 			t.Error("Bucket should be depleted")
 		}
@@ -88,14 +92,14 @@ func TestLimiter_Integration_Refill(t *testing.T) {
 
 		// Should be able to make 4 requests
 		for i := 0; i < 4; i++ {
-			result := l.Allow(ctx, key)
+			result := l.Allow(ctx, key, rate, maxTokens)
 			if !result.Allowed {
 				t.Errorf("Request %d should be allowed after refill", i+1)
 			}
 		}
 
 		// 5th request should fail
-		result = l.Allow(ctx, key)
+		result = l.Allow(ctx, key, rate, maxTokens)
 		if result.Allowed {
 			t.Error("Request 5 should be denied (only 4 tokens refilled)")
 		}
@@ -111,12 +115,14 @@ func TestLimiter_Integration_MaxTokensCap(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 10 tokens/sec, Max: 5 tokens
-	l := NewLimiter(c, 10, 5)
+	l := NewLimiter(c)
+	rate := int64(10)
+	maxTokens := int64(5)
 
 	t.Run("Tokens don't exceed max", func(t *testing.T) {
 		// Use 2 tokens
-		l.Allow(ctx, key)
-		l.Allow(ctx, key)
+		l.Allow(ctx, key, rate, maxTokens)
+		l.Allow(ctx, key, rate, maxTokens)
 
 		// Wait 5 seconds (would refill 50 tokens, but capped at 5)
 		time.Sleep(5 * time.Second)
@@ -124,7 +130,7 @@ func TestLimiter_Integration_MaxTokensCap(t *testing.T) {
 		// Should only be able to make 5 requests total (3 remaining + 2 used = 5 max)
 		successCount := 0
 		for i := 0; i < 10; i++ {
-			result := l.Allow(ctx, key)
+			result := l.Allow(ctx, key, rate, maxTokens)
 			if result.Allowed {
 				successCount++
 			}
@@ -145,11 +151,13 @@ func TestLimiter_Integration_RaceCondition(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 1 tokens/sec (slow refill), Max: 10 tokens
-	l := NewLimiter(c, 1, 10)
+	l := NewLimiter(c)
+	rate := int64(1)
+	maxTokens := int64(10)
 
 	t.Run("Concurrent requests are handled atomically", func(t *testing.T) {
 		// Initialize bucket by making first request
-		l.Allow(ctx, key)
+		l.Allow(ctx, key, rate, maxTokens)
 
 		// Wait a moment to ensure bucket is set
 		time.Sleep(100 * time.Millisecond)
@@ -164,7 +172,7 @@ func TestLimiter_Integration_RaceCondition(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				result := l.Allow(ctx, key)
+				result := l.Allow(ctx, key, rate, maxTokens)
 				results <- result.Allowed
 			}()
 		}
@@ -200,11 +208,13 @@ func TestLimiter_Integration_TTL(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 1 token/sec, Max: 5 tokens
-	l := NewLimiter(c, 1, 5)
+	l := NewLimiter(c)
+	rate := int64(1)
+	maxTokens := int64(5)
 
 	t.Run("Bucket has TTL set", func(t *testing.T) {
 		// Make a request to create the bucket
-		result := l.Allow(ctx, key)
+		result := l.Allow(ctx, key, rate, maxTokens)
 		if !result.Allowed {
 			t.Error("First request should be allowed")
 		}
@@ -234,28 +244,30 @@ func TestLimiter_Integration_MultipleUsers(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key2) }()
 
 	// Rate: 1 token/sec, Max: 3 tokens
-	l := NewLimiter(c, 1, 3)
+	l := NewLimiter(c)
+	rate := int64(1)
+	maxTokens := int64(3)
 
 	t.Run("Different users have independent buckets", func(t *testing.T) {
 		// User 1 depletes their bucket
 		for i := 0; i < 3; i++ {
-			l.Allow(ctx, key1)
+			l.Allow(ctx, key1, rate, maxTokens)
 		}
-		result := l.Allow(ctx, key1)
+		result := l.Allow(ctx, key1, rate, maxTokens)
 		if result.Allowed {
 			t.Error("User 1 should be rate limited")
 		}
 
 		// User 2 should still have tokens
 		for i := 0; i < 3; i++ {
-			result := l.Allow(ctx, key2)
+			result := l.Allow(ctx, key2, rate, maxTokens)
 			if !result.Allowed {
 				t.Errorf("User 2 request %d should be allowed (independent bucket)", i+1)
 			}
 		}
 
 		// User 2 should now be depleted too
-		result = l.Allow(ctx, key2)
+		result = l.Allow(ctx, key2, rate, maxTokens)
 		if result.Allowed {
 			t.Error("User 2 should be rate limited after 3 requests")
 		}
@@ -271,11 +283,13 @@ func TestLimiter_Integration_HighConcurrency(t *testing.T) {
 	defer func() { _ = c.Delete(ctx, key) }()
 
 	// Rate: 1 tokens/sec, Max: 50 tokens
-	l := NewLimiter(c, 1, 50)
+	l := NewLimiter(c)
+	rate := int64(1)
+	maxTokens := int64(50)
 
 	t.Run("High concurrency stress test", func(t *testing.T) {
 		// Initialize bucket
-		l.Allow(ctx, key)
+		l.Allow(ctx, key, rate, maxTokens)
 
 		// Launch 500 concurrent requests
 		// Only 49 more should succeed (50 - 1 already used)
@@ -287,7 +301,7 @@ func TestLimiter_Integration_HighConcurrency(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				result := l.Allow(ctx, key)
+				result := l.Allow(ctx, key, rate, maxTokens)
 				results <- result.Allowed
 			}()
 		}
