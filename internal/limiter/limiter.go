@@ -14,37 +14,25 @@ import (
 
 type Limiter struct {
 	cache 		cache.Cache
-	rate 		int64
-	maxTokens 	int64
 }
 
-func NewLimiter(c cache.Cache, rate int64, max int64) *Limiter {
-	if rate <= 0 {
-		panic("rate must be positive")
-	}
-
-	if max <= 0 {
-		panic ("maxTokens must be positive")
-	}
-
+func NewLimiter(c cache.Cache) *Limiter {
 	return &Limiter{
 		cache: c,
-		rate: rate,
-		maxTokens: max,
 	}
 }
 
-func (l *Limiter) Allow(ctx context.Context, key string) *models.RateLimitResult {
+func (l *Limiter) Allow(ctx context.Context, key string, rate int64, maxTokens int64) *models.RateLimitResult {
 	rlResult := &models.RateLimitResult{
 		Allowed: true, 
-		Limit: l.maxTokens,
+		Limit: maxTokens,
 		Remaining: 0,
 		ResetAt: 0,
 		RetryAfter: 0,
 		FailOpen: false,
 	}
 
-	result, err := l.cache.Eval(ctx, getLimit, []string{key}, []any{l.rate, l.maxTokens, time.Now().Unix()})
+	result, err := l.cache.Eval(ctx, getLimit, []string{key}, []any{rate, maxTokens, time.Now().Unix()})
 	// Fail-open 
 	if err != nil {
 		metrics.RedisOpsTotal.WithLabelValues("eval", "error").Inc()
@@ -66,7 +54,7 @@ func (l *Limiter) Allow(ctx context.Context, key string) *models.RateLimitResult
 	rlResult.ResetAt = values[2].(int64)
 
 	if !rlResult.Allowed {
-		rlResult.RetryAfter = int64(math.Ceil(1.0 / float64(l.rate)))
+		rlResult.RetryAfter = int64(math.Ceil(1.0 / float64(rate)))
 	}
 
 	return rlResult

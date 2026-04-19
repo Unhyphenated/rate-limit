@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/Unhyphenated/rate-limit/internal/cache"
@@ -36,12 +35,6 @@ func main() {
         slog.Int("port", 8080),
     )
 	
-	rateStr := getEnv("RATE_LIMIT_FPS", "10")
-	maxStr := getEnv("RATE_LIMIT_MAX", "100")
-
-	rate, _ := strconv.ParseInt(rateStr, 10, 64)
-    max, _ := strconv.ParseInt(maxStr, 10, 64)
-
 	// Start Redis cache
 	redisUrl := getEnv("REDIS_URL", "redis://localhost:6379")
 	cache, err := cache.NewCache(redisUrl)
@@ -52,11 +45,15 @@ func main() {
 
 	defer cache.Close()
 
-	limiter := limiter.NewLimiter(cache, rate, max)
+	limiter := limiter.NewLimiter(cache)
 	
 	mux := http.NewServeMux()
 
+	// Register API endpoints with rate limiting
 	mux.HandleFunc("/api/v1/prices", middleware.RateLimit(limiter, handlers.GetPrices))
+	mux.HandleFunc("/api/v1/trades", middleware.RateLimit(limiter, handlers.GetTrades))
+	mux.HandleFunc("/api/v1/orders", middleware.RateLimit(limiter, handlers.GetOrders))
+	mux.HandleFunc("/api/v1/wallet", middleware.RateLimit(limiter, handlers.GetWallet))
 
 	// Handle Prometheus metrics using promhttp
 	metrics.Init()
