@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Unhyphenated/rate-limit/internal/config"
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
 	"github.com/Unhyphenated/rate-limit/internal/metrics"
 )
@@ -20,9 +21,10 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		endpoint := r.URL.Path
+		limits := config.GetLimits(endpoint)
 		start := time.Now()
 
-		result := l.Allow(r.Context(), key)
+		result := l.Allow(r.Context(), key, limits.Rate, limits.MaxTokens)
 
 		metrics.RequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds())
 
