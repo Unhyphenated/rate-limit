@@ -6,10 +6,10 @@ type EndpointLimits struct {
 }
 
 var LimitConfig = map[string]EndpointLimits{
-    "/api/v1/prices": {Rate: 100, MaxTokens: 1000},
-    "/api/v1/trades": {Rate: 50, MaxTokens: 500},
-    "/api/v1/orders": {Rate: 10, MaxTokens: 100},
-    "/api/v1/wallet": {Rate: 5, MaxTokens: 50},
+    "/api/v1/prices": {Rate: 2, MaxTokens: 1000},
+    "/api/v1/trades": {Rate: 2, MaxTokens: 500},
+    "/api/v1/orders": {Rate: 2, MaxTokens: 100},
+    "/api/v1/wallet": {Rate: 1, MaxTokens: 50},
 }
 
 func GetLimits(endpoint string) EndpointLimits {
