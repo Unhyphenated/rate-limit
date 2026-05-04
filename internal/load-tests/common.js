@@ -33,7 +33,7 @@ export function hitApi(opts = {}) {
 
   check(res, {
     'valid response': (r) => r.status === 200 || r.status === 429,
-    'has rate limit headers': (r) => r.headers['X-Ratelimit-Remaining'] !== undefined;
+    'has rate limit headers': (r) => r.headers['X-Ratelimit-Remaining'] !== undefined
   });
 
   return res;
