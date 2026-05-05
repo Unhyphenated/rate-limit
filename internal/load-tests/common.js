@@ -1,9 +1,9 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { Counter } from 'k6/metrics';
+import { Rate } from 'k6/metrics';
 import exec from 'k6/execution'
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:80';
 const API_PATH = '/api/v1/prices';
 
 export const rateLimited = new Rate('rate_limited_ratio');
