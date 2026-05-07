@@ -9,3 +9,7 @@ scrape_configs:
         - 'api-1:8080'
         - 'api-2:8080'
         - 'api-3:8080'
+  
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis_exporter:9121']
