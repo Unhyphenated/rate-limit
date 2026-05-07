@@ -71,5 +71,15 @@ services:
       depends_on:
         - prometheus
 
+  redis_exporter:
+      image: oliver006/redis_exporter:latest
+      container_name: redis_exporter
+      ports:
+        - "9121:9121"
+      environment:
+        REDIS_ADDR: "redis://redis:6379"
+      depends_on:
+        - redis
+
 volumes:
   grafana-storage:
