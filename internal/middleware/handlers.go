@@ -60,11 +60,8 @@ func getClientIP(r *http.Request) string {
 
 	if xff != "" {
 		parts := strings.Split(xff, ",")
-
-		targetIndex := len(parts) - numProxies
-		if targetIndex >= 0 {
-			return strings.TrimSpace(parts[targetIndex])
-		}
+		trimmed := parts[:len(parts) - numProxies]
+		return strings.TrimSpace(trimmed[len(trimmed) - 1])
 	}
 
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
