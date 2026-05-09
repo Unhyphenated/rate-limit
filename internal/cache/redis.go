@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
+	"github.com/Unhyphenated/rate-limit/internal/metrics"
 	"github.com/Unhyphenated/rate-limit/internal/models"
 	"github.com/redis/go-redis/v9"
 )
@@ -67,10 +69,14 @@ func (c *Redis) Set(ctx context.Context, key string, bucket *models.Bucket) erro
 }
 
 func (c *Redis) Eval(ctx context.Context, script *redis.Script, keys []string, args []any) (any, error) {
+	start := time.Now()
 	res, err := script.Run(ctx, c.Client, keys, args...).Result()
+	status := "success"
 	if err != nil {
-		return nil, fmt.Errorf("failed to run Lua script: %w", err)
+		status = "error"
 	}
+
+	metrics.RedisOpsDuration.WithLabelValues("eval", status).Observe(time.Since(start).Seconds())
 	return res, nil
 }
 

@@ -1,37 +1,47 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { Counter } from 'k6/metrics';
+import { Rate } from 'k6/metrics';
+import exec from 'k6/execution'
 
-const baseUrl = 'http://localhost';
-const apiPath = '/api/v1/prices';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:80';
+const API_PATH = '/api/v1/prices';
 
-/** Counts 429 responses (expected under overload). */
-export const rateLimited429 = new Counter('rate_limited_429');
+export const rateLimited = new Rate('rate_limited_ratio');
+export const realErrors = new Rate('real_error_ratio');
 
 export function targetUrl() {
-  const path = apiPath.startsWith('/') ? apiPath : `/${apiPath}`;
-  return `${baseUrl.replace(/\/$/, '')}${path}`;
+  return `${BASE_URL}${API_PATH}`;
 }
 
-export function defaultHeaders() {
+export function ipForVU() {
+  const vuId = exec.vu.idInTest;
+  return `10.0.${Math.floor(vuId / 256)}.${vuId % 256}`
+}
+
+export function hitApi(opts = {}) {
+  const ip = opts.ip || ipForVU(); 
+  const tags = opts.tags || {};
+
+  const res = http.get(targetUrl(), {
+    headers: { 'X-Forwarded-For': ip, ...defaultHeaders() },
+    tags: { name: 'price_api', ...tags },
+    responseCallback: http.expectedStatuses(200, 429),
+  });
+
+  rateLimited.add(res.status === 429);
+  realErrors.add(res.status !== 200 && res.status !== 429);
+
+  check(res, {
+    'valid response': (r) => r.status === 200 || r.status === 429,
+    'has rate limit headers': (r) => r.headers['X-Ratelimit-Remaining'] !== undefined
+  });
+
+  return res;
+}
+
+function defaultHeaders() {
   const h = {};
-  const key = __ENV.API_KEY;
-  if (key) {
-    h['X-API-KEY'] = key;
-  }
+  if (__ENV.API_KEY) h['X-API-KEY'] = __ENV.API_KEY;
   return h;
 }
 
-/**
- * GET against the API; treats 200 and 429 as success for threshold/check purposes.
- */
-export function hitApi() {
-  const res = http.get(targetUrl(), { headers: defaultHeaders() });
-  if (res.status === 429) {
-    rateLimited429.add(1);
-  }
-  check(res, {
-    'status is 200 or 429': (r) => r.status === 200 || r.status === 429,
-  });
-  return res;
-}

@@ -1,0 +1,16 @@
+FROM golang:1.25-alpine
+
+WORKDIR /app
+
+# Install air in the environment that will actually run
+RUN go install github.com/air-verse/air@latest
+
+ENV PATH="/go/bin:${PATH}"
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Air needs the Go compiler to re-build your app on changes
+CMD ["air", "-c", ".air.toml"]

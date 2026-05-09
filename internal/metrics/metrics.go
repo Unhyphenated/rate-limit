@@ -25,6 +25,7 @@ var (
 			Subsystem: "http",
 			Name:      "request_duration_seconds",
 			Help:      "Latency of the rate limiting check in seconds.",
+			Buckets: []float64{0.0001, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
 		},
 		[]string{"endpoint"},
 	)
@@ -37,6 +38,17 @@ var (
 			Name:      "operations_total",
 			Help:      "Total number of Redis operations performed.",
 		},
+		[]string{"operation", "status"},
+	)
+
+	RedisOpsDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "ratelimiter",
+			Subsystem: "redis",
+			Name: "operation_duration_seconds",
+			Help: "Duration of Redis operations",
+			Buckets: []float64{0.0001, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
+		}, 
 		[]string{"operation", "status"},
 	)
 
