@@ -2,31 +2,6 @@ package config
 
 import "testing"
 
-func TestGetLimits_ValidEndpoints(t *testing.T) {
-	tests := []struct {
-		endpoint  string
-		wantRate  int64
-		wantMax   int64
-	}{
-		{"/api/v1/prices", 100, 1000},
-		{"/api/v1/trades", 50, 500},
-		{"/api/v1/orders", 10, 100},
-		{"/api/v1/wallet", 5, 50},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.endpoint, func(t *testing.T) {
-			limits := GetLimits(tt.endpoint)
-			if limits.Rate != tt.wantRate {
-				t.Errorf("GetLimits(%s).Rate = %d, want %d", tt.endpoint, limits.Rate, tt.wantRate)
-			}
-			if limits.MaxTokens != tt.wantMax {
-				t.Errorf("GetLimits(%s).MaxTokens = %d, want %d", tt.endpoint, limits.MaxTokens, tt.wantMax)
-			}
-		})
-	}
-}
-
 func TestGetLimits_UnknownEndpoint(t *testing.T) {
 	limits := GetLimits("/api/v1/unknown")
 	

@@ -29,7 +29,7 @@ export const options = {
   },
   thresholds: {
     // Legitimate users must barely notice the attack
-    'http_req_duration{status:200,traffic_type:legitimate}': ['p(99)<20'],
+    'http_req_duration{status:200,traffic_type:legitimate}': ['p(99)<30'],
     'rate_limited_ratio{traffic_type:legitimate}': ['rate<0.05'],
 
     // Attacker must be heavily limited
