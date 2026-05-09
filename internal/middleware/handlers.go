@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Unhyphenated/rate-limit/internal/config"
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
 	"github.com/Unhyphenated/rate-limit/internal/metrics"
 )
@@ -20,9 +21,10 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		endpoint := r.URL.Path
+		limits := config.GetLimits(endpoint)
 		start := time.Now()
 
-		result := l.Allow(r.Context(), key)
+		result := l.Allow(r.Context(), key, limits.Rate, limits.MaxTokens)
 
 		metrics.RequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds())
 
@@ -35,6 +37,9 @@ func RateLimit(l *limiter.Limiter, next http.HandlerFunc) http.HandlerFunc {
 
 		if !result.Allowed {
 			metrics.RequestsTotal.WithLabelValues("denied", endpoint).Inc()
+			w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(result.Limit, 10))
+			w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(result.Remaining, 10))
+			w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(result.ResetAt, 10))
 			w.Header().Set("Retry-After", strconv.FormatInt(result.RetryAfter, 10))
 			w.WriteHeader(429)
 			return
@@ -55,11 +60,8 @@ func getClientIP(r *http.Request) string {
 
 	if xff != "" {
 		parts := strings.Split(xff, ",")
-
-		targetIndex := len(parts) - numProxies
-		if targetIndex >= 0 {
-			return strings.TrimSpace(parts[targetIndex])
-		}
+		trimmed := parts[:len(parts) - numProxies]
+		return strings.TrimSpace(trimmed[len(trimmed) - 1])
 	}
 
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
