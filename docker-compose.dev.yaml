@@ -1,0 +1,24 @@
+services:
+   api-1:
+      build:
+         context: .
+         dockerfile: Dockerfile.dev  # This must be inside 'build'
+      volumes:
+         - .:/app
+      command: air -c .air.toml  
+      
+   api-2:
+      build:
+         context: .
+         dockerfile: Dockerfile.dev  # This must be inside 'build'
+      volumes:
+         - .:/app
+      command: air -c .air.toml  
+      
+   api-3:
+      build:
+         context: .
+         dockerfile: Dockerfile.dev  # This must be inside 'build'
+      volumes:
+         - .:/app
+      command: air -c .air.toml  
