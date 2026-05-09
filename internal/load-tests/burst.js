@@ -27,7 +27,7 @@ export const options = {
   
     'real_error_ratio': ['rate<0.01'],
   
-    'http_reqs': ['count>150000'],
+    'http_reqs': ['count>75000'],
   }
 };
 
