@@ -29,7 +29,7 @@ export function hitApi(opts = {}) {
   });
 
   rateLimited.add(res.status === 429);
-  realErrors.add(res.status !== 200 || res.status !== 429);
+  realErrors.add(res.status !== 200 && res.status !== 429);
 
   check(res, {
     'valid response': (r) => r.status === 200 || r.status === 429,

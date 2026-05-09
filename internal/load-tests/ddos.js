@@ -48,7 +48,6 @@ export function attackerFn() {
 }
 
 export function legitimateFn() {
-  // hitApi() already uses per-VU IPs by default
   hitApi({
     tags: { traffic_type: 'legitimate' },
   });
