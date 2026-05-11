@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Unhyphenated/rate-limit/internal/breaker"
 	"github.com/Unhyphenated/rate-limit/internal/cache"
 	"github.com/Unhyphenated/rate-limit/internal/handlers"
 	"github.com/Unhyphenated/rate-limit/internal/limiter"
@@ -37,16 +38,22 @@ func main() {
 	
 	// Start Redis cache
 	redisUrl := getEnv("REDIS_URL", "redis://localhost:6379")
-	cache, err := cache.NewCache(redisUrl)
+	redisCache, err := cache.NewCache(redisUrl)
 	if err != nil {
 		slog.Error("failed_to_initialize_redis_cache", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+	defer redisCache.Close()
 
-	defer cache.Close()
+	cb := breaker.NewCircuitBreaker(breaker.Config{
+		FailureThreshold:  5,
+		CooldownPeriod:    30 * time.Second,
+		HalfOpenSuccesses: 3,
+	})
+	wrapped := cache.NewCircuitBreakerCache(redisCache, cb)
 
-	limiter := limiter.NewLimiter(cache)
-	
+	limiter := limiter.NewLimiter(wrapped)
+
 	mux := http.NewServeMux()
 
 	// Register API endpoints with rate limiting
@@ -64,7 +71,7 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		for range ticker.C {
-			count, err := cache.Count(context.Background(), "*")
+			count, err := redisCache.Count(context.Background(), "*")
 			if err == nil {
 				metrics.ActiveBuckets.Set(float64(count))
 			}
