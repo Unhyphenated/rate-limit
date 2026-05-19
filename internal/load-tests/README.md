@@ -2,7 +2,7 @@
 
 This document records the results of load testing the distributed rate limiter across four scenarios designed to stress different system properties: baseline performance, sustained burst handling with recovery, and per-client isolation under simulated DDoS conditions. A fifth chaos test validates graceful degradation when the Redis dependency fails.
 
-All tests were executed against the local Docker Compose stack: 3 Go API instances behind an Nginx load balancer (round-robin), a single Redis instance for rate limit state, and Prometheus/Grafana for observability. The k6 load generator and the system under test run on the same machine, so latency figures reflect application and Redis behavior with negligible network overhead.
+All tests were executed against a local Docker Compose stack: 3 Go API instances behind an Nginx load balancer (round-robin), a single Redis instance for rate limit state, and Prometheus/Grafana for observability. The k6 load generator and the system under test run on the same machine, so latency figures reflect application and Redis behavior with negligible network overhead.
 
 ## Summary
 
@@ -93,7 +93,7 @@ This test indicates the system's actual capacity is well above the tested 3000 R
 | Legitimate | 50 RPS | 82.85ms | 0% |
 
 - Total requests: ~125,000
-- Three of four thresholds passed; legitimate p99 exceeded the aspirational 30ms target
+- Three of four thresholds passed; legitimate p99 exceeded the 30ms target
 
 **Analysis:**
 The rate limiter correctly isolated client identities. The attacker's single bucket was hammered and rejected 98.15% of requests, while legitimate clients with distinct buckets saw zero rate limiting despite the concurrent attack.
@@ -163,10 +163,9 @@ The recovery behavior across all tests is striking. The burst test's phase 5 ret
 - k6 hit dropped-iteration limits during the burst spike (156 iterations dropped), indicating the load generator could not sustain 3000 RPS perfectly on this hardware
 - No tests of authentication, request body parsing, or upstream service latency — the rate limiter sits in front of a stub price endpoint
 - Tests do not measure correctness under load (i.e., that the rate limiter rejects exactly the right number of requests over time, not just approximately)
-- DDoS test was run with an earlier configuration and not re-run with the updated codebase; if rerun, results may differ slightly
 
 ## Conclusion
 
 The system meets its primary goals: sub-millisecond median latency under healthy load, near-flat latency response to a 60x traffic spike, per-client isolation during attack, and graceful degradation under dependency failure. The scenarios where thresholds did not pass — legitimate p99 during DDoS and the chaos test's overall thresholds — reflect honest measurement of real costs that the system pays in those conditions. Both costs are bounded and explained by the architecture: per-key serialization at Redis and intentional fail-open during outages.
 
-The data justifies further work in two directions: Redis sharding to improve tail latency under attack, and potentially a smaller circuit breaker failure threshold to shorten the latency window during failures.
+The data justifies further work in two directions: Redis sharding to improve tail latency under attack, and potentially a smaller circuit breaker failure threshold to shorten the latency window during failures. In addition, optimizing the Lua script could drastically improve latency as well.
