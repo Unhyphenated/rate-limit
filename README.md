@@ -22,16 +22,16 @@ By decoupling the application logic from the state store, the gateway scales hor
 ## Architecture
 
 ```
-                   [ Incoming Traffic ]
-                            │
-                            ▼
-                 ┌────────────────────┐
-                 │    Nginx Proxy     │
-                 │   (Round Robin)    │
-                 └─────────┬──────────┘
-                           │
-     ┌─────────────────────┼─────────────────────┐
-     ▼                     ▼                     ▼
+                       [ Incoming Traffic ]
+                                │
+                                ▼
+                      ┌────────────────────┐
+                      │    Nginx Proxy     │
+                      │   (Round Robin)    │
+                      └─────────┬──────────┘
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          ▼                     ▼                     ▼
 ┌───────────────────┐ ┌───────────────────┐ ┌───────────────────┐
 │  Go API Node 1    │ │  Go API Node 2    │ │  Go API Node 3    │
 │┌─────────────────┐│ │┌─────────────────┐│ │┌─────────────────┐│
@@ -41,10 +41,10 @@ By decoupling the application logic from the state store, the gateway scales hor
           │                     │                     │
           └─────────────────────┼─────────────────────┘
                                 ▼
-                   ┌────────────────────┐
-                   │ Centralized Redis  │ <── [Prometheus Exporter]
-                   │ (Lua Script State) │
-                   └────────────────────┘
+                      ┌────────────────────┐
+                      │ Centralized Redis  │ <── [Prometheus Exporter]
+                      │ (Lua Script State) │
+                      └────────────────────┘
 ```
 
 ---
