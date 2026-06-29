@@ -120,7 +120,7 @@ All metrics were validated using an open-loop **k6** load testing engine executi
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Steady State** | 500 RPS | 500.01 RPS | 933µs | 11.26ms | 0% Errors / Healthy |
 | **Sustained Burst** | 3000 RPS | 3,000.00 RPS | 305µs | 9.99ms | 0% Errors / Immediate Recovery |
-| **DDoS Isolation** | 1050 RPS | 1,044.00 RPS | 565µs (Legit) | 82.85ms (Legit) | **98.15% Attacker Requests Dropped** |
+| **DDoS Isolation** | 1050 RPS | 1,044.00 RPS | 565µs | 82.85ms | **98.15% Attacker Requests Dropped** |
 | **Infrastructure Chaos** | 500 RPS | 497.68 RPS | 2.63ms | 138.25ms | 0% Errors / **Fail-Open Active** |
 
 ### Key Operational Observations
